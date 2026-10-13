@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration Monitoring - Jira Ticket Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            min-height: 600px;
+        }
+
+        .left-panel {
+            padding: 30px;
+            border-right: 1px solid #e0e0e0;
+            overflow-y: auto;
+            max-height: 800px;
+        }
+
+        .right-panel {
+            padding: 30px;
+            background: #f8f9fa;
+            overflow-y: auto;
+            max-height: 800px;
+        }
+
+        .form-section {
+            margin-bottom: 25px;
+        }
+
+        .form-section label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-section input,
+        .form-section select,
+        .form-section textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            margin-bottom: 5px;
+        }
+
+        .form-section input:focus,
+        .form-section select:focus,
+        .form-section textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .ticket-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 12px 16px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .tab-btn:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .info-box {
+            background: #e8f0ff;
+            border-left: 4px solid #667eea;
+            padding: 12px 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-top: 10px;
+            color: #333;
+        }
+
+        .info-box.warning {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+        }
+
+        .info-box.success {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+        }
+
+        .template-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .template-section {
+            margin-bottom: 20px;
+        }
+
+        .template-label {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .template-content {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            word-break: break-word;
+            white-space: pre-wrap;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .copy-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .copy-btn.copied {
+            background: #4caf50;
+        }
+
+        .guidance-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .guidance-title {
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .guidance-list {
+            list-style: none;
+            font-size: 13px;
+            line-height: 1.8;
+            color: #555;
+        }
+
+        .guidance-list li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .guidance-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        @media (max-width: 900px) {
+            .content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .left-panel {
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+            }
+
+            .ticket-tabs {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .required {
+            color: #e74c3c;
+        }
+
+        .dataset-list {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            margin-top: 5px;
+        }
+
+        .dataset-list div {
+            padding: 4px 8px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎫 Migration Monitoring Jira Ticket Generator</h1>
+            <p>Create standardized Jira tickets for dataset delivery issues</p>
+        </div>
+
+        <div class="content">
+            <div class="left-panel">
+                <form id="ticketForm">
+                    <!-- Category Selection -->
+                    <div class="form-section">
+                        <label>Select Category <span class="required">*</span></label>
+                        <div class="ticket-tabs" style="grid-template-columns: 1fr;">
+                            <button type="button" class="tab-btn active" data-category="migration">Migration Monitoring Jira Tickets</button>
+                            <button type="button" class="tab-btn" data-category="dataAddition">Data Addition History Ticket Generator</button>
+                        </div>
+                        <input type="hidden" id="category" value="migration" required>
+                    </div>
+
+                    <!-- Dataset Selection -->
+                    <div class="form-section">
+                        <label>Dataset Name <span class="required">*</span></label>
+                        <input type="text" id="datasetName" placeholder="e.g., PLATTS_CD, EEX_FUT, ICE_EUA_FUTREL" required>
+                        <div class="dataset-list">
+                            <div>📊 Common datasets:</div>
+                            <div>PLATTS_CD, EEX_FUT, ICE_EUA_FUTREL</div>
+                            <div>TP_FO</div>
+                        </div>
+                    </div>
+
+                    <!-- Trade Date & Scheduled Time -->
+                    <div id="dateTimeFields">
+                        <div class="form-section">
+                            <label>Trade Date <span class="required">*</span></label>
+                            <input type="date" id="tradeDate" required>
+                        </div>
+                        <div class="form-section">
+                            <label>Scheduled Time (UTC) <span class="required">*</span></label>
+                            <input type="time" id="scheduledTime" value="00:00" required>
+                        </div>
+                    </div>
+
+                    <!-- Client -->
+                    <div class="form-section">
+                        <label>Client <span class="required">*</span></label>
+                        <select id="client" required>
+                            <option value="">Select client...</option>
+                            <option value="ENI">ENI</option>
+                            <option value="BKW">BKW</option>
+                        </select>
+                    </div>
+
+                    <!-- Environment (DGOPS only) -->
+                    <div id="envField" class="form-section" style="display: none;">
+                        <label>Environment <span class="required">*</span></label>
+                        <select id="environment">
+                            <option value="Prod">Prod</option>
+                            <option value="UAT">UAT</option>
+                            <option value="Dev">Dev</option>
+                        </select>
+                    </div>
+
+                    <!-- Ticket Type Selection -->
+                    <div class="form-section">
+                        <label>Ticket Type <span class="required">*</span></label>
+                        <div id="migrationTickets" class="ticket-tabs">
+                            <button type="button" class="tab-btn active" data-type="HDTR">HDTR</button>
+                            <button type="button" class="tab-btn" data-type="DGOPS">DGOPS</button>
+                            <button type="button" class="tab-btn" data-type="DELAY">Delay</button>
+                            <button type="button" class="tab-btn" data-type="MISSING">Missing Models</button>
+                        </div>
+                        <div id="dataAdditionTickets" class="ticket-tabs" style="display: none;">
+                            <button type="button" class="tab-btn" data-type="DATA_ADD">Data Addition</button>
+                        </div>
+                        <input type="hidden" id="ticketType" value="HDTR" required>
+                    </div>
+
+                    <!-- Model Fields (Hidden by default) -->
+                    <div id="modelFields" style="display: none;">
+                        <div class="form-section">
+                            <label>Expected Model Count <span class="required">*</span></label>
+                            <input type="number" id="expectedModels" placeholder="e.g., 40" min="0">
+                        </div>
+                        <div class="form-section">
+                            <label>Models Delivered <span class="required">*</span></label>
+                            <input type="number" id="deliveredModels" placeholder="e.g., 35" min="0">
+                        </div>
+                        <div class="form-section">
+                            <label>Missing Model Names (Optional)</label>
+                            <textarea id="missingModelNames" placeholder="e.g., MODEL_001, MODEL_002, MODEL_003" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Data Addition Fields (Hidden by default) -->
+                    <div id="dataAddFields" style="display: none;">
+                        <div class="form-section">
+                            <label>Category Name <span class="required">*</span></label>
+                            <input type="text" id="categoryName" placeholder="e.g., New Contracts, Energy Prices">
+                        </div>
+                        <div class="form-section">
+                            <label>Related Ticket Link <span class="required">*</span></label>
+                            <input type="text" id="relatedTicket" placeholder="e.g., HDTR-1234 or DGOPS-5678">
+                        </div>
+                        <div class="form-section">
+                            <label>GitHub PR Link <span class="required">*</span></label>
+                            <input type="url" id="githubLink" placeholder="e.g., https://github.com/...">
+                        </div>
+                        <div class="form-section">
+                            <label>Pull Request Name <span class="required">*</span></label>
+                            <input type="text" id="prName" placeholder="e.g., ENI-PROD-NDEX-EC2-New contracts-#404">
+                        </div>
+                    </div>
+
+                    <div id="ticketGuidance" class="guidance-section">
+                        <div class="guidance-title">✓ When to use HDTR:</div>
+                        <ul class="guidance-list">
+                            <li>Data not visible in MarketView</li>
+                            <li>File was not received/picked up by MarketView</li>
+                            <li>Upstream delivery failed</li>
+                        </ul>
+                        <div class="info-box" style="margin-top: 12px;">
+                            <strong>📋 When Data Is Not Visible in MarketView</strong>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="right-panel">
+                <div class="template-title">Jira Ticket Template</div>
+                
+                <div class="template-section">
+                    <div class="template-label">Summary/Title</div>
+                    <div class="template-content" id="summaryTemplate"></div>
+                    <button class="copy-btn" onclick="copyToClipboard('summaryTemplate', this)">Copy Summary</button>
+                </div>
+
+                <div class="template-section">
+                    <div class="template-label">Description</div>
+                    <div class="template-content" id="descriptionTemplate"></div>
+                    <button class="copy-btn" onclick="copyToClipboard('descriptionTemplate', this)">Copy Description</button>
+                </div>
+
+                <div id="infoBoxContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCREENSHOT = '   [Paste a screenshot]';
+        const ONE_LINER = 'Could you please investigate the possible missing reasons and confirm us the same?';
+
+        const ticketTemplates = {
+            HDTR: {
+                title: 'When Data Is Not Visible in MarketView',
+                guidance: [
+                    'Data was not received or picked up by MarketView',
+                    'Upstream system failed to send the file',
+                    'File arrived but was not processed'
+                ],
+                summaryPattern: '[{client}] {dataset} — Data not visible in MarketView',
+                descriptionPattern: `*Issue:* Data for {dataset} was not received in MarketView by the scheduled time.
+
+*Details:*
+• Trade date: {tradeDate}
+• Client: {client}
+• Dataset: {dataset}
+• Scheduled (UTC): {time}
+• Migration Monitoring status: Not started
+• Data in MarketView: No
+${SCREENSHOT}
+
+*Action required:* Could you please investigate the possible missing reasons and confirm us the same? (HDTR team)`
+            },
+            DGOPS: {
+                title: 'When Data Is Visible in MarketView but Not Delivered',
+                guidance: [
+                    'Data is in MarketView but not delivered to the client',
+                    'JSON file not uploaded / Bridge delivery failing',
+                    'Data transformation or routing issue'
+                ],
+                summaryPattern: '[{client}] {dataset} — Data visible in MarketView but not delivered',
+                descriptionPattern: `*Issue:* {dataset} data is visible in MarketView but has not been delivered to {client}.
+
+*Details:*
+• Trade date: {tradeDate}
+• Client: {client}
+• Dataset: {dataset}
+• Scheduled (UTC): {time}
+• Environment: {client} {env}
+• Data in MarketView: Yes
+• Data delivered to {client}: No
+
+*Checks done:*
+• Dashboard — JSON file not uploaded
+• Grafana Logs — expected message "Data received for the symbols from current collection" not found
+${SCREENSHOT}
+
+*Action required:* Could you please investigate the possible missing reasons and confirm us the same? (DGOPS team)`
+            },
+            DELAY: {
+                title: 'When Data Delivery Is Delayed',
+                guidance: [
+                    'Dataset has not started processing by scheduled time',
+                    'Unusual delay observed in pipeline',
+                    'Impacting downstream delivery'
+                ],
+                summaryPattern: '[{client}] {dataset} — Delivery delayed',
+                descriptionPattern: `*Issue:* {dataset} delivery is delayed and processing has not started.
+
+*Details:*
+• Trade date: {tradeDate}
+• Client: {client}
+• Dataset: {dataset}
+• Scheduled (UTC): {time}
+• Current status: Not started (Overdue)
+${SCREENSHOT}
+
+*Impact:* Delayed delivery is impacting the {client} category.
+
+*Action required:* Could you please investigate the possible missing reasons and confirm us the same?`
+            },
+            MISSING: {
+                title: 'When Expected Models Are Not Delivered',
+                guidance: [
+                    'Expected model count not met in delivery',
+                    'Some models missing from dataset',
+                    'Partial data delivery'
+                ],
+                summaryPattern: '[{client}] {dataset} — Missing models',
+                descriptionPattern: `*Issue:* {dataset} delivery is incomplete — expected model count not met.
+
+*Details:*
+• Trade date: {tradeDate}
+• Client: {client}
+• Dataset: {dataset}
+• Scheduled (UTC): {time}
+• Expected models: {expectedModels}
+• Delivered models: {deliveredModels}
+• Missing models: {missingModels}
+• Missing model names: {missingModelNames}
+${SCREENSHOT}
+
+*Action required:* Could you please investigate the possible missing reasons and confirm us the same?`
+            },
+            DATA_ADD: {
+                title: 'Data Addition Validation Request',
+                guidance: [
+                    'New data addition requested by client',
+                    'Mapping properties and categories configured',
+                    'Pull request submitted for review'
+                ],
+                summaryPattern: '{client} - Validation - Data Addition - {categoryName}',
+                descriptionPattern: `Hi Team,
+
+{client} has requested for new data addition for {categoryName} under
+{relatedTicket}
+
+I have reviewed the ticket and I've added the mapping properties and category to the mapping file for {categoryName} and submitted a pull request at {githubLink}
+
+Pull request:
+{prName}
+
+Could you please review and approve the pull request, then restart the server.
+
+Following approval and server restart, we will deploy the new data to {client} and generate historical data after validation.`
+            }
+        };
+
+        // Default trade date = today (UTC)
+        document.getElementById('tradeDate').value = new Date().toISOString().split('T')[0];
+
+        // Category button event listeners
+        document.querySelectorAll('[data-category]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('[data-category]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('category').value = btn.dataset.category;
+
+                const migrationTickets = document.getElementById('migrationTickets');
+                const dataAdditionTickets = document.getElementById('dataAdditionTickets');
+
+                if (btn.dataset.category === 'migration') {
+                    migrationTickets.style.display = 'grid';
+                    dataAdditionTickets.style.display = 'none';
+                    const hdtrBtn = migrationTickets.querySelector('[data-type="HDTR"]');
+                    if (hdtrBtn) hdtrBtn.click();
+                } else {
+                    migrationTickets.style.display = 'none';
+                    dataAdditionTickets.style.display = 'grid';
+                    const dataAddBtn = dataAdditionTickets.querySelector('[data-type="DATA_ADD"]');
+                    if (dataAddBtn) dataAddBtn.click();
+                }
+            });
+        });
+
+        // Tab button event listeners for ticket types
+        document.querySelectorAll('[data-type]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                const group = btn.closest('#migrationTickets, #dataAdditionTickets');
+                if (group) group.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const type = btn.dataset.type;
+                document.getElementById('ticketType').value = type;
+
+                const isDataAdd = type === 'DATA_ADD';
+                document.getElementById('modelFields').style.display = type === 'MISSING' ? 'block' : 'none';
+                document.getElementById('dataAddFields').style.display = isDataAdd ? 'block' : 'none';
+                document.getElementById('dateTimeFields').style.display = isDataAdd ? 'none' : 'block';
+                document.getElementById('datasetName').parentElement.style.display = isDataAdd ? 'none' : 'block';
+                document.getElementById('envField').style.display = type === 'DGOPS' ? 'block' : 'none';
+
+                updateTemplates();
+            });
+        });
+
+        // Form input event listeners
+        ['datasetName', 'tradeDate', 'scheduledTime', 'client', 'environment',
+         'expectedModels', 'deliveredModels', 'missingModelNames',
+         'categoryName', 'relatedTicket', 'githubLink', 'prName'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('input', updateTemplates);
+            el.addEventListener('change', updateTemplates);
+        });
+
+        function fill(text, values) {
+            return text.replace(/\{(\w+)\}/g, (m, key) => (key in values ? values[key] : m));
+        }
+
+        function updateTemplates() {
+            const ticketType = document.getElementById('ticketType').value;
+            const template = ticketTemplates[ticketType];
+
+            const expected = parseInt(document.getElementById('expectedModels').value, 10) || 0;
+            const delivered = parseInt(document.getElementById('deliveredModels').value, 10) || 0;
+
+            const values = {
+                client: document.getElementById('client').value || 'CLIENT',
+                dataset: document.getElementById('datasetName').value.trim() || 'DATASET',
+                tradeDate: document.getElementById('tradeDate').value || 'YYYY-MM-DD',
+                time: document.getElementById('scheduledTime').value || 'HH:MM',
+                env: document.getElementById('environment').value || 'Prod',
+                expectedModels: expected,
+                deliveredModels: delivered,
+                missingModels: Math.max(0, expected - delivered),
+                missingModelNames: document.getElementById('missingModelNames').value.trim() || 'Not specified',
+                categoryName: document.getElementById('categoryName').value.trim() || '{CATEGORY_NAME}',
+                relatedTicket: document.getElementById('relatedTicket').value.trim() || '{RELATED_TICKET}',
+                githubLink: document.getElementById('githubLink').value.trim() || '{GITHUB_LINK}',
+                prName: document.getElementById('prName').value.trim() || '{PR_NAME}'
+            };
+
+            document.getElementById('summaryTemplate').textContent = fill(template.summaryPattern, values);
+            document.getElementById('descriptionTemplate').textContent = fill(template.descriptionPattern, values);
+
+            document.getElementById('ticketGuidance').innerHTML = `
+                <div class="guidance-title">✓ ${template.title}:</div>
+                <ul class="guidance-list">
+                    ${template.guidance.map(item => `<li>${item}</li>`).join('')}
+                </ul>
+            `;
+        }
+
+        function copyToClipboard(elementId, btn) {
+            const text = document.getElementById(elementId).textContent;
+            const done = () => {
+                const original = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = original;
+                    btn.classList.remove('copied');
+                }, 2000);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+            } else {
+                fallbackCopy(text, done);
+            }
+        }
+
+        function fallbackCopy(text, done) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); done(); } catch (e) {}
+            document.body.removeChild(ta);
+        }
+
+        // Initialize
+        updateTemplates();
+    </script>
+</body>
+</html>
