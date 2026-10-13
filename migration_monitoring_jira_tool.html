@@ -180,7 +180,7 @@
             line-height: 1.6;
             word-break: break-word;
             white-space: pre-wrap;
-            max-height: 200px;
+            max-height: 320px;
             overflow-y: auto;
         }
 
@@ -305,14 +305,20 @@
                         <div class="dataset-list">
                             <div>📊 Common datasets:</div>
                             <div>PLATTS_CD, EEX_FUT, ICE_EUA_FUTREL</div>
-                            <div>ENI_PRICE, BKW_VOLUME, HTAR_DATA</div>
+                            <div>TP_FO</div>
                         </div>
                     </div>
 
-                    <!-- Date & Time -->
-                    <div class="form-section">
-                        <label>Issue Date/Time (UTC) <span class="required">*</span></label>
-                        <input type="datetime-local" id="issueDateTime" required>
+                    <!-- Trade Date & Scheduled Time -->
+                    <div id="dateTimeFields">
+                        <div class="form-section">
+                            <label>Trade Date <span class="required">*</span></label>
+                            <input type="date" id="tradeDate" required>
+                        </div>
+                        <div class="form-section">
+                            <label>Scheduled Time (UTC) <span class="required">*</span></label>
+                            <input type="time" id="scheduledTime" value="00:00" required>
+                        </div>
                     </div>
 
                     <!-- Client -->
@@ -322,6 +328,16 @@
                             <option value="">Select client...</option>
                             <option value="ENI">ENI</option>
                             <option value="BKW">BKW</option>
+                        </select>
+                    </div>
+
+                    <!-- Environment (DGOPS only) -->
+                    <div id="envField" class="form-section" style="display: none;">
+                        <label>Environment <span class="required">*</span></label>
+                        <select id="environment">
+                            <option value="Prod">Prod</option>
+                            <option value="UAT">UAT</option>
+                            <option value="Dev">Dev</option>
                         </select>
                     </div>
 
@@ -396,13 +412,13 @@
                 <div class="template-section">
                     <div class="template-label">Summary/Title</div>
                     <div class="template-content" id="summaryTemplate"></div>
-                    <button class="copy-btn" onclick="copyToClipboard('summaryTemplate')">Copy Summary</button>
+                    <button class="copy-btn" onclick="copyToClipboard('summaryTemplate', this)">Copy Summary</button>
                 </div>
 
                 <div class="template-section">
                     <div class="template-label">Description</div>
                     <div class="template-content" id="descriptionTemplate"></div>
-                    <button class="copy-btn" onclick="copyToClipboard('descriptionTemplate')">Copy Description</button>
+                    <button class="copy-btn" onclick="copyToClipboard('descriptionTemplate', this)">Copy Description</button>
                 </div>
 
                 <div id="infoBoxContainer"></div>
@@ -411,120 +427,108 @@
     </div>
 
     <script>
+        const SCREENSHOT = '   [Paste a screenshot]';
+        const ONE_LINER = 'Could you please investigate the possible missing reasons and confirm us the same?';
+
         const ticketTemplates = {
             HDTR: {
                 title: 'When Data Is Not Visible in MarketView',
                 guidance: [
                     'Data was not received or picked up by MarketView',
                     'Upstream system failed to send the file',
-                    'Connection or transmission issue occurred',
                     'File arrived but was not processed'
                 ],
-                summaryPattern: '[HDTR] {dataset} - Data Not Received in MarketView ({date})',
-                descriptionPattern: `Dataset: {dataset}
-Client: {client}
-Issue Time: {datetime}
+                summaryPattern: '[{client}] {dataset} — Data not visible in MarketView',
+                descriptionPattern: `*Issue:* Data for {dataset} was not received in MarketView by the scheduled time.
 
-ISSUE:
-Data for {dataset} was not received or picked up by MarketView at the expected time.
+*Details:*
+• Trade date: {tradeDate}
+• Client: {client}
+• Dataset: {dataset}
+• Scheduled (UTC): {time}
+• Migration Monitoring status: Not started
+• Data in MarketView: No
+${SCREENSHOT}
 
-DETAILS:
-• Scheduled delivery time: {datetime}
-• Expected dataset: {dataset}
-• Data visible in MarketView: NO
-• Status in Migration Monitoring: Not started
-
-ACTION REQUIRED:
-Could you please investigate the possible missing reasons and confirm us the same?`
+*Action required:* Could you please investigate the possible missing reasons and confirm us the same? (HDTR team)`
             },
             DGOPS: {
-                title: 'When Data Is Not Delivering to {client} Category',
+                title: 'When Data Is Visible in MarketView but Not Delivered',
                 guidance: [
-                    'Data is in MarketView but not visible to client',
-                    'Data transformation or routing issue',
-                    'Bridge delivery is failing',
-                    'Data format or validation problem'
+                    'Data is in MarketView but not delivered to the client',
+                    'JSON file not uploaded / Bridge delivery failing',
+                    'Data transformation or routing issue'
                 ],
-                summaryPattern: '[DGOPS] {dataset} - Data Not Delivering to {client} ({date})',
-                descriptionPattern: `Dataset: {dataset}
-Client: {client}
-Issue Time: {datetime}
+                summaryPattern: '[{client}] {dataset} — Data visible in MarketView but not delivered',
+                descriptionPattern: `*Issue:* {dataset} data is visible in MarketView but has not been delivered to {client}.
 
-ISSUE:
-{dataset} data has been received and is visible in MarketView, but is not delivering to {client} category.
+*Details:*
+• Trade date: {tradeDate}
+• Client: {client}
+• Dataset: {dataset}
+• Scheduled (UTC): {time}
+• Environment: {client} {env}
+• Data in MarketView: Yes
+• Data delivered to {client}: No
 
-DETAILS:
-• Scheduled delivery time: {datetime}
-• Expected dataset: {dataset}
-• Data in MarketView: YES
-• Data delivered to {client}: NO
-• Status in Migration Monitoring: Not started
+*Checks done:*
+• Dashboard — JSON file not uploaded
+• Grafana Logs — expected message "Data received for the symbols from current collection" not found
+${SCREENSHOT}
 
-ACTION REQUIRED:
-Could you please investigate the possible missing reasons and confirm us the same?`
+*Action required:* Could you please investigate the possible missing reasons and confirm us the same? (DGOPS team)`
             },
             DELAY: {
                 title: 'When Data Delivery Is Delayed',
                 guidance: [
                     'Dataset has not started processing by scheduled time',
                     'Unusual delay observed in pipeline',
-                    'Requires timely intervention',
-                    'Impacting downstream dependencies'
+                    'Impacting downstream delivery'
                 ],
-                summaryPattern: '[DELAY] {dataset} - Delivery Delayed ({date})',
-                descriptionPattern: `Dataset: {dataset}
-Client: {client}
-Issue Time: {datetime}
+                summaryPattern: '[{client}] {dataset} — Delivery delayed',
+                descriptionPattern: `*Issue:* {dataset} delivery is delayed and processing has not started.
 
-ISSUE:
-{dataset} delivery is delayed and has not started processing.
+*Details:*
+• Trade date: {tradeDate}
+• Client: {client}
+• Dataset: {dataset}
+• Scheduled (UTC): {time}
+• Current status: Not started (Overdue)
+${SCREENSHOT}
 
-DETAILS:
-• Scheduled time: {datetime}
-• Current status: Not started
-• Expected deadline: [From schedule]
-• Status: Overdue
+*Impact:* Delayed delivery is impacting the {client} category.
 
-IMPACT:
-Delayed delivery is impacting {client} category processing.
-
-ACTION REQUIRED:
-Could you please investigate the possible missing reasons and confirm us the same?`
+*Action required:* Could you please investigate the possible missing reasons and confirm us the same?`
             },
             MISSING: {
                 title: 'When Expected Models Are Not Delivered',
                 guidance: [
                     'Expected model count not met in delivery',
                     'Some models missing from dataset',
-                    'Partial data delivery',
-                    'Model count mismatch'
+                    'Partial data delivery'
                 ],
-                summaryPattern: '[MISSING MODELS] {dataset} - Missing Models ({date})',
-                descriptionPattern: `Dataset: {dataset}
-Client: {client}
-Issue Time: {datetime}
+                summaryPattern: '[{client}] {dataset} — Missing models',
+                descriptionPattern: `*Issue:* {dataset} delivery is incomplete — expected model count not met.
 
-ISSUE:
-{dataset} delivery is incomplete. Expected model count not met.
-
-DETAILS:
-• Dataset name: {dataset}
+*Details:*
+• Trade date: {tradeDate}
 • Client: {client}
-• Expected model count: {expectedModels}
-• Models delivered: {deliveredModels}
-• Missing models count: {missingModels}
+• Dataset: {dataset}
+• Scheduled (UTC): {time}
+• Expected models: {expectedModels}
+• Delivered models: {deliveredModels}
+• Missing models: {missingModels}
 • Missing model names: {missingModelNames}
+${SCREENSHOT}
 
-ACTION REQUIRED:
-Could you please investigate the possible missing reasons and confirm us the same?`
+*Action required:* Could you please investigate the possible missing reasons and confirm us the same?`
             },
             DATA_ADD: {
                 title: 'Data Addition Validation Request',
                 guidance: [
                     'New data addition requested by client',
                     'Mapping properties and categories configured',
-                    'Pull request submitted for review',
-                    'Ready for deployment'
+                    'Pull request submitted for review'
                 ],
                 summaryPattern: '{client} - Validation - Data Addition - {categoryName}',
                 descriptionPattern: `Hi Team,
@@ -543,6 +547,9 @@ Following approval and server restart, we will deploy the new data to {client} a
             }
         };
 
+        // Default trade date = today (UTC)
+        document.getElementById('tradeDate').value = new Date().toISOString().split('T')[0];
+
         // Category button event listeners
         document.querySelectorAll('[data-category]').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -550,23 +557,18 @@ Following approval and server restart, we will deploy the new data to {client} a
                 document.querySelectorAll('[data-category]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById('category').value = btn.dataset.category;
-                
-                // Show/hide ticket type buttons based on category
+
                 const migrationTickets = document.getElementById('migrationTickets');
                 const dataAdditionTickets = document.getElementById('dataAdditionTickets');
-                
+
                 if (btn.dataset.category === 'migration') {
                     migrationTickets.style.display = 'grid';
                     dataAdditionTickets.style.display = 'none';
-                    // Set first migration ticket as default and click it
-                    document.getElementById('ticketType').value = 'HDTR';
                     const hdtrBtn = migrationTickets.querySelector('[data-type="HDTR"]');
                     if (hdtrBtn) hdtrBtn.click();
                 } else {
                     migrationTickets.style.display = 'none';
                     dataAdditionTickets.style.display = 'grid';
-                    // Set data addition ticket as default and click it
-                    document.getElementById('ticketType').value = 'DATA_ADD';
                     const dataAddBtn = dataAdditionTickets.querySelector('[data-type="DATA_ADD"]');
                     if (dataAddBtn) dataAddBtn.click();
                 }
@@ -577,152 +579,97 @@ Following approval and server restart, we will deploy the new data to {client} a
         document.querySelectorAll('[data-type]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                
-                // Remove active from same category buttons only
-                const category = btn.closest('#migrationTickets, #dataAdditionTickets');
-                if (category) {
-                    category.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                }
-                
+
+                const group = btn.closest('#migrationTickets, #dataAdditionTickets');
+                if (group) group.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                document.getElementById('ticketType').value = btn.dataset.type;
-                
-                // Show/hide specific fields based on ticket type
-                const modelFields = document.getElementById('modelFields');
-                const dataAddFields = document.getElementById('dataAddFields');
-                const issueDateTime = document.getElementById('issueDateTime').parentElement;
-                const datasetName = document.getElementById('datasetName').parentElement;
-                
-                if (btn.dataset.type === 'MISSING') {
-                    modelFields.style.display = 'block';
-                    dataAddFields.style.display = 'none';
-                    issueDateTime.style.display = 'block';
-                    datasetName.style.display = 'block';
-                } else if (btn.dataset.type === 'DATA_ADD') {
-                    modelFields.style.display = 'none';
-                    dataAddFields.style.display = 'block';
-                    // Hide dataset and datetime fields for data addition
-                    issueDateTime.style.display = 'none';
-                    datasetName.style.display = 'none';
-                } else {
-                    modelFields.style.display = 'none';
-                    dataAddFields.style.display = 'none';
-                    // Show dataset and datetime fields for other types
-                    issueDateTime.style.display = 'block';
-                    datasetName.style.display = 'block';
-                }
-                
+
+                const type = btn.dataset.type;
+                document.getElementById('ticketType').value = type;
+
+                const isDataAdd = type === 'DATA_ADD';
+                document.getElementById('modelFields').style.display = type === 'MISSING' ? 'block' : 'none';
+                document.getElementById('dataAddFields').style.display = isDataAdd ? 'block' : 'none';
+                document.getElementById('dateTimeFields').style.display = isDataAdd ? 'none' : 'block';
+                document.getElementById('datasetName').parentElement.style.display = isDataAdd ? 'none' : 'block';
+                document.getElementById('envField').style.display = type === 'DGOPS' ? 'block' : 'none';
+
                 updateTemplates();
             });
         });
 
         // Form input event listeners
-        document.getElementById('datasetName').addEventListener('input', updateTemplates);
-        document.getElementById('issueDateTime').addEventListener('change', updateTemplates);
-        document.getElementById('client').addEventListener('change', updateTemplates);
-        document.getElementById('expectedModels').addEventListener('input', updateTemplates);
-        document.getElementById('deliveredModels').addEventListener('input', updateTemplates);
-        document.getElementById('missingModelNames').addEventListener('input', updateTemplates);
-        document.getElementById('categoryName').addEventListener('input', updateTemplates);
-        document.getElementById('relatedTicket').addEventListener('input', updateTemplates);
-        document.getElementById('githubLink').addEventListener('input', updateTemplates);
-        document.getElementById('prName').addEventListener('input', updateTemplates);
+        ['datasetName', 'tradeDate', 'scheduledTime', 'client', 'environment',
+         'expectedModels', 'deliveredModels', 'missingModelNames',
+         'categoryName', 'relatedTicket', 'githubLink', 'prName'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('input', updateTemplates);
+            el.addEventListener('change', updateTemplates);
+        });
 
-        function formatDateTime(dateTimeString) {
-            if (!dateTimeString) return 'YYYY-MM-DD HH:MM UTC';
-            const dt = new Date(dateTimeString);
-            return dt.toISOString().split('T')[0] + ' ' + dt.toISOString().split('T')[1].substring(0, 5) + ' UTC';
+        function fill(text, values) {
+            return text.replace(/\{(\w+)\}/g, (m, key) => (key in values ? values[key] : m));
         }
 
         function updateTemplates() {
             const ticketType = document.getElementById('ticketType').value;
-            const client = document.getElementById('client').value || 'CLIENT';
             const template = ticketTemplates[ticketType];
 
-            let summary = '';
-            let description = '';
+            const expected = parseInt(document.getElementById('expectedModels').value, 10) || 0;
+            const delivered = parseInt(document.getElementById('deliveredModels').value, 10) || 0;
 
-            if (ticketType === 'DATA_ADD') {
-                // Data Addition specific template
-                const categoryName = document.getElementById('categoryName').value || '{CATEGORY_NAME}';
-                const relatedTicket = document.getElementById('relatedTicket').value || '{RELATED_TICKET}';
-                const githubLink = document.getElementById('githubLink').value || '{GITHUB_LINK}';
-                const prName = document.getElementById('prName').value || '{PR_NAME}';
+            const values = {
+                client: document.getElementById('client').value || 'CLIENT',
+                dataset: document.getElementById('datasetName').value.trim() || 'DATASET',
+                tradeDate: document.getElementById('tradeDate').value || 'YYYY-MM-DD',
+                time: document.getElementById('scheduledTime').value || 'HH:MM',
+                env: document.getElementById('environment').value || 'Prod',
+                expectedModels: expected,
+                deliveredModels: delivered,
+                missingModels: Math.max(0, expected - delivered),
+                missingModelNames: document.getElementById('missingModelNames').value.trim() || 'Not specified',
+                categoryName: document.getElementById('categoryName').value.trim() || '{CATEGORY_NAME}',
+                relatedTicket: document.getElementById('relatedTicket').value.trim() || '{RELATED_TICKET}',
+                githubLink: document.getElementById('githubLink').value.trim() || '{GITHUB_LINK}',
+                prName: document.getElementById('prName').value.trim() || '{PR_NAME}'
+            };
 
-                summary = template.summaryPattern
-                    .replace('{client}', client)
-                    .replace('{categoryName}', categoryName);
+            document.getElementById('summaryTemplate').textContent = fill(template.summaryPattern, values);
+            document.getElementById('descriptionTemplate').textContent = fill(template.descriptionPattern, values);
 
-                description = template.descriptionPattern
-                    .replace(/{client}/g, client)
-                    .replace(/{categoryName}/g, categoryName)
-                    .replace('{relatedTicket}', relatedTicket)
-                    .replace('{githubLink}', githubLink)
-                    .replace('{prName}', prName);
-            } else if (ticketType === 'MISSING') {
-                // Missing models template
-                const dataset = document.getElementById('datasetName').value || '{DATASET_NAME}';
-                const expectedModels = document.getElementById('expectedModels').value || '0';
-                const deliveredModels = document.getElementById('deliveredModels').value || '0';
-                const missingModelsCount = Math.max(0, expectedModels - deliveredModels);
-                const missingModelNames = document.getElementById('missingModelNames').value || 'Not specified';
-
-                summary = template.summaryPattern
-                    .replace('{dataset}', dataset);
-
-                description = template.descriptionPattern
-                    .replace(/{dataset}/g, dataset)
-                    .replace('{expectedModels}', expectedModels)
-                    .replace('{deliveredModels}', deliveredModels)
-                    .replace('{missingModels}', missingModelsCount)
-                    .replace('{missingModelNames}', missingModelNames)
-                    .replace('{client}', client);
-            } else {
-                // Other ticket types (HDTR, DGOPS, DELAY)
-                const dataset = document.getElementById('datasetName').value || '{DATASET_NAME}';
-                const datetime = document.getElementById('issueDateTime').value;
-                const date = formatDateTime(datetime);
-
-                summary = template.summaryPattern
-                    .replace('{dataset}', dataset)
-                    .replace('{date}', date)
-                    .replace('{client}', client);
-
-                description = template.descriptionPattern
-                    .replace(/{dataset}/g, dataset)
-                    .replace(/{datetime}/g, date)
-                    .replace(/{client}/g, client);
-            }
-
-            document.getElementById('summaryTemplate').textContent = summary;
-            document.getElementById('descriptionTemplate').textContent = description;
-
-            // Update guidance
-            const guidanceHtml = `
+            document.getElementById('ticketGuidance').innerHTML = `
                 <div class="guidance-title">✓ ${template.title}:</div>
                 <ul class="guidance-list">
                     ${template.guidance.map(item => `<li>${item}</li>`).join('')}
                 </ul>
-                <div class="info-box" style="margin-top: 12px;">
-                    <strong>📋 ${template.title}</strong>
-                </div>
             `;
-            document.getElementById('ticketGuidance').innerHTML = guidanceHtml;
         }
 
-        function copyToClipboard(elementId) {
-            const element = document.getElementById(elementId);
-            const text = element.textContent;
-            navigator.clipboard.writeText(text).then(() => {
-                const btn = event.target;
-                const originalText = btn.textContent;
+        function copyToClipboard(elementId, btn) {
+            const text = document.getElementById(elementId).textContent;
+            const done = () => {
+                const original = btn.textContent;
                 btn.textContent = '✓ Copied!';
                 btn.classList.add('copied');
                 setTimeout(() => {
-                    btn.textContent = originalText;
+                    btn.textContent = original;
                     btn.classList.remove('copied');
                 }, 2000);
-            });
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+            } else {
+                fallbackCopy(text, done);
+            }
+        }
+
+        function fallbackCopy(text, done) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); done(); } catch (e) {}
+            document.body.removeChild(ta);
         }
 
         // Initialize
